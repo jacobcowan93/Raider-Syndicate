@@ -1,0 +1,28 @@
+# CRITICAL: Do NOT list `tailwind-admin-nextjs-free` or
+# `tailwind-admin-nextjs-free/package` as ignore entries — only ignore
+# artifacts *inside* package. firebase.json rootDir is that folder.
+
+.git
+.github
+.cursor
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
+
+# Sibling template ports (not the live Next app)
+tailwind-admin-html-free
+tailwind-admin-angular-free
+tailwind-admin-reactjs-free
+tailwind-admin-vuejs-free
+tailwind-admin-tanstack-start
+
+tailwind-admin-nextjs-free/package/node_modules
+tailwind-admin-nextjs-free/package/.next
+tailwind-admin-nextjs-free/package/out
+tailwind-admin-nextjs-free/package/.turbo
+tailwind-admin-nextjs-free/package/.vercel
+tailwind-admin-nextjs-free/package/.env.local
+tailwind-admin-nextjs-free/package/tsconfig.tsbuildinfo
+
+.DS_Store
+*.log

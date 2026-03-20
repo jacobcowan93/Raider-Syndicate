@@ -1,0 +1,12 @@
+---
+description: Always include the Next.js package folder as primary context
+alwaysApply: true
+---
+
+# Primary Package Context
+
+Always treat `/Users/jacobcowan/Projects/Raider_Syndicate/tailwind-admin-nextjs-free/package` as the primary working directory and source of truth for this project.
+
+- When exploring the codebase, start from this folder
+- When answering questions about dependencies, configs, or project structure, reference files within this path first
+- When making edits or suggestions, default to files within this directory unless told otherwise

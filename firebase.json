@@ -1,0 +1,17 @@
+{
+  "apphosting": {
+    "backendId": "raider-syndicate",
+    "rootDir": "tailwind-admin-nextjs-free/package",
+    "ignore": [
+      "node_modules",
+      ".next",
+      ".env.local",
+      ".vercel",
+      "tsconfig.tsbuildinfo",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "functions"
+    ]
+  }
+}
