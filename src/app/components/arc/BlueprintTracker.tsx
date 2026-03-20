@@ -6,7 +6,7 @@ import { db } from '@/lib/firebaseClient'
 import { getDropForBlueprint } from '@/data/blueprint_drops'
 import type { BlueprintDrop } from '@/data/blueprint_drops'
 import MissingBlueprintsReport from './MissingBlueprintsReport'
-import { downloadReportAsImage, downloadReportAsPdf } from '@/lib/blueprintReportUtils'
+// Removed: static import of blueprintReportUtils to prevent SSR/Build errors
 import { useMfBlueprints } from '@/hooks/useMfBlueprints'
 import { watchAuthState } from '@/lib/firebaseAuth'
 import type { User } from 'firebase/auth'
@@ -260,7 +260,6 @@ function BPCard({ bp, isObtained, toggling, drop, onToggle, onAuthRequired, user
       onMouseEnter={() => setShowPopup(true)}
       onMouseLeave={() => setShowPopup(false)}
     >
-      {/* Name + checkbox */}
       <div
         style={{
           padding: '10px 12px',
@@ -314,7 +313,6 @@ function BPCard({ bp, isObtained, toggling, drop, onToggle, onAuthRequired, user
         </button>
       </div>
 
-      {/* Image */}
       <div style={{ width: '100%', height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -329,7 +327,6 @@ function BPCard({ bp, isObtained, toggling, drop, onToggle, onAuthRequired, user
         />
       </div>
 
-      {/* Hover popup */}
       {showPopup && (
         <div
           style={{
@@ -446,14 +443,11 @@ export default function BlueprintTracker() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const reportRef = useRef<HTMLDivElement>(null)
 
-  // Watch auth state
   useEffect(() => watchAuthState(setUser), [])
 
-  // Stable IDs list for useMfBlueprints
   const blueprintIds = useMemo(() => BLUEPRINTS.map(bp => bp.id), [])
   const { blueprintMeta } = useMfBlueprints(blueprintIds)
 
-  // Load obtained from Firestore
   useEffect(() => {
     setLoading(true)
     const load = async () => {
@@ -510,6 +504,9 @@ export default function BlueprintTracker() {
   const handleDownloadPdf = async () => {
     setDownloadError(''); setDownloading(true)
     try {
+      // Dynamic import: Prevents Node-specific code from running during SSR/Build
+      const { downloadReportAsPdf } = await import('@/lib/blueprintReportUtils')
+      
       await new Promise(r => setTimeout(r, 100))
       if (!reportRef.current) throw new Error('Report not ready')
       await downloadReportAsPdf(reportRef.current, 'missing-blueprints-report.pdf')
@@ -521,6 +518,9 @@ export default function BlueprintTracker() {
   const handleDownloadImage = async () => {
     setDownloadError(''); setDownloading(true)
     try {
+      // Dynamic import: Prevents browser-only libraries from breaking the Build
+      const { downloadReportAsImage } = await import('@/lib/blueprintReportUtils')
+
       await new Promise(r => setTimeout(r, 100))
       if (!reportRef.current) throw new Error('Report not ready')
       await downloadReportAsImage(reportRef.current, 'missing-blueprints-report.jpg')
@@ -538,7 +538,6 @@ export default function BlueprintTracker() {
 
   return (
     <div style={{ minHeight: '100dvh', position: 'relative', background: '#0b0d11' }}>
-      {/* Hidden report for export */}
       <div ref={reportRef} style={{ position: 'absolute', left: -9999, top: 0, zIndex: -1, visibility: 'hidden' }}>
         <MissingBlueprintsReport
           missingBlueprints={missingBlueprints}
@@ -547,7 +546,6 @@ export default function BlueprintTracker() {
         />
       </div>
 
-      {/* Auth prompt */}
       {showAuthPrompt && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000,
@@ -574,7 +572,6 @@ export default function BlueprintTracker() {
         </div>
       )}
 
-      {/* Header */}
       <div
         style={{
           position: 'relative',
@@ -585,7 +582,6 @@ export default function BlueprintTracker() {
           overflow: 'hidden',
         }}
       >
-        {/* Grid texture */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
           backgroundImage: ['linear-gradient(rgba(220,38,38,0.04) 1px, transparent 1px)', 'linear-gradient(90deg, rgba(220,38,38,0.04) 1px, transparent 1px)'].join(', '),
@@ -608,7 +604,6 @@ export default function BlueprintTracker() {
             Tracker
           </h1>
 
-          {/* Progress badge */}
           {!loading && (
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
@@ -626,14 +621,12 @@ export default function BlueprintTracker() {
             </div>
           )}
 
-          {/* Sign-in notice */}
           <div style={{ fontSize: 13, color: DIM, marginBottom: 20, lineHeight: 1.6 }}>
             {user
               ? 'Click the checkbox to mark as obtained. Hover a card for drop location.'
               : 'Sign in via the header to save your progress across devices.'}
           </div>
 
-          {/* Stats */}
           {!loading && (
             <>
               <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -644,7 +637,6 @@ export default function BlueprintTracker() {
                 <StatBox label="Missing" value={needed} accent={RED} />
               </div>
 
-              {/* Progress bar + filter */}
               <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', marginBottom: 12, flexWrap: 'wrap' }}>
                 <div style={{
                   flex: 1, minWidth: 140, padding: '10px 14px',
@@ -683,7 +675,6 @@ export default function BlueprintTracker() {
                 </button>
               </div>
 
-              {/* Download + reset */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
                 <button
                   onClick={handleDownloadPdf}
@@ -742,7 +733,6 @@ export default function BlueprintTracker() {
         </div>
       </div>
 
-      {/* Grid */}
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
           <div style={{ width: 32, height: 32, border: `3px solid rgba(220,38,38,0.2)`, borderTopColor: RED, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -779,17 +769,13 @@ export default function BlueprintTracker() {
         </div>
       )}
 
-      {/* MetaForge attribution */}
-      {blueprintMeta.size > 0 && (
-        <div style={{ padding: '12px 20px 28px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-          Item data enriched by{' '}
-          <a href="https://metaforge.app/arc-raiders" target="_blank" rel="noopener noreferrer" style={{ color: COBALT }}>
-            MetaForge
-          </a>
-        </div>
-      )}
+      <div style={{ padding: '12px 20px 28px', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+        Item data enriched by{' '}
+        <a href="https://metaforge.app/arc-raiders" target="_blank" rel="noopener noreferrer" style={{ color: COBALT }}>
+          MetaForge
+        </a>
+      </div>
 
-      {/* Bottom bar */}
       <div
         style={{
           width: '100%',
