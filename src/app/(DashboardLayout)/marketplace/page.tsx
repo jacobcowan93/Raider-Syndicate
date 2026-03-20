@@ -81,7 +81,8 @@ function G2gSetupCard() {
         <p><span style={{ color: '#dc2626' }}># </span><span style={{ color: '#64748b' }}>.env.local — fill these in:</span></p>
         <p><span style={{ color: '#c9a84c' }}>G2G_API_KEY</span>=&lt;your-api-key&gt;</p>
         <p><span style={{ color: '#c9a84c' }}>G2G_USER_ID</span>=&lt;your-user-id&gt;</p>
-        <p><span style={{ color: '#c9a84c' }}>G2G_SECRET</span>=&lt;your-hmac-secret&gt;</p>
+        <p><span style={{ color: '#c9a84c' }}>G2G_SECRET_KEY</span>=&lt;your-hmac-secret&gt;</p>
+        <p className="text-[10px] opacity-80">(Legacy: <span style={{ color: '#64748b' }}>G2G_SECRET</span> still works.)</p>
       </div>
 
       <ol className="text-sm space-y-2" style={{ color: '#8b9ab3' }}>
@@ -248,7 +249,7 @@ export default async function MarketplacePage({
   const isConfigured = Boolean(
     process.env.G2G_API_KEY &&
     process.env.G2G_USER_ID &&
-    process.env.G2G_SECRET,
+    (process.env.G2G_SECRET_KEY || process.env.G2G_SECRET),
   )
 
   let offers:       G2gOffer[]           = []

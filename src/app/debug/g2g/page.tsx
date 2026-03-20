@@ -6,13 +6,14 @@
  */
 
 import { getServices } from '@/lib/g2g'
+import { G2gProductList } from '@/app/components/g2g/G2gProductList'
 
 export const dynamic = 'force-dynamic'
 
 export default async function G2gDebugPage() {
   const apiKey  = process.env.G2G_API_KEY
   const userId  = process.env.G2G_USER_ID
-  const secret  = process.env.G2G_SECRET
+  const secret  = process.env.G2G_SECRET_KEY || process.env.G2G_SECRET
 
   const configured = Boolean(apiKey && userId && secret)
 
@@ -39,7 +40,9 @@ export default async function G2gDebugPage() {
         🛒 G2G OpenAPI Debug
       </h1>
       <p style={{ color: '#8b9ab3', marginBottom: '2rem', fontSize: '0.85rem' }}>
-        Base URL: <code style={{ color: '#c9a84c' }}>https://openapi.g2g.com</code>
+        Base URL: <code style={{ color: '#c9a84c' }}>https://open-api.g2g.com</code>
+        {' '}
+        <span style={{ color: '#64748b' }}>(override with G2G_API_BASE_URL)</span>
       </p>
 
       {/* Credential check */}
@@ -73,7 +76,7 @@ export default async function G2gDebugPage() {
           {[
             `G2G_API_KEY  ${apiKey  ? `set (${apiKey.slice(0, 6)}…)`  : 'NOT SET'}`,
             `G2G_USER_ID  ${userId  ? `set (${userId})`               : 'NOT SET'}`,
-            `G2G_SECRET   ${secret  ? `set (${secret.slice(0, 4)}…)`  : 'NOT SET'}`,
+            `G2G_SECRET_KEY / G2G_SECRET  ${secret ? `set (${secret.slice(0, 4)}…)` : 'NOT SET'}`,
           ].join('\n')}
         </pre>
       </div>
@@ -124,6 +127,15 @@ export default async function G2gDebugPage() {
         </div>
       )}
 
+      {configured && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ color: '#c9a84c', fontSize: '1rem', marginBottom: '0.75rem' }}>
+            GET /v2/products (Server Action + Tailwind list)
+          </h2>
+          <G2gProductList />
+        </div>
+      )}
+
       {!configured && (
         <div
           style={{
@@ -142,7 +154,7 @@ export default async function G2gDebugPage() {
             <li>
               Add to <code style={{ color: '#dc2626' }}>.env.local</code>:
               <pre style={{ background: '#13161e', padding: '0.5rem', borderRadius: '4px', marginTop: '0.25rem' }}>
-                {`G2G_API_KEY=your_api_key\nG2G_USER_ID=your_user_id\nG2G_SECRET=your_secret`}
+                {`G2G_API_KEY=your_api_key\nG2G_USER_ID=your_user_id\nG2G_SECRET_KEY=your_secret`}
               </pre>
             </li>
             <li>Restart the dev server and reload this page</li>

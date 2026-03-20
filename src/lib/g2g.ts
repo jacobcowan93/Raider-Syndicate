@@ -1,94 +1,33 @@
 /**
- * G2G OpenAPI v2 client stub
+ * G2G OpenAPI v2 helpers (offers, catalogue).
  *
- * Docs:           https://docs.g2g.com
- * Auth intro:     https://docs.g2g.com/authentication-intro-1237152m0
- * Setup API key:  https://docs.g2g.com/setup-api-key-1237153m0
+ * Docs: https://docs.g2g.com
+ * Low-level signing/HTTP: `./g2gClient` (server-only).
  *
- * API access requires approval from G2G (limited to certain sellers/regions).
- * Fill in the env vars below once you have keys; all calls throw until then.
- *
- * Signature algorithm (per docs):
- *   HMAC-SHA256(secret, path + apiKey + userId + timestamp)
- *   → sent as hex in the `g2g-signature` header
- *   timestamp = Date.now() in milliseconds, expires within 5 minutes
+ * Multi-seller / Firebase: store per-user G2G credentials in Firestore, e.g.
+ *   `users/{firebaseUid}/integrations/g2g` → { g2gUserId, apiKeyRef, secretRef }
+ * and pass `userId` + secrets from that document into server actions instead of env.
+ * Prefer Secret Manager or encrypted fields for `G2G_SECRET_KEY`, not plain text.
  */
 
-import crypto from 'crypto'
+import {
+  assertG2gEnv,
+  buildG2gQueryPath,
+  g2gFetch,
+  signG2gRequest as computeG2gSignature,
+} from './g2gClient'
 
-// ─── Config ────────────────────────────────────────────────────────────────
+// ─── Signature (tests / custom flows) ────────────────────────────────────────
 
-const G2G_BASE_URL = 'https://openapi.g2g.com'
-
-const G2G_API_KEY = process.env.G2G_API_KEY
-const G2G_USER_ID = process.env.G2G_USER_ID
-const G2G_SECRET  = process.env.G2G_SECRET
-
-// ─── Signature helper ──────────────────────────────────────────────────────
-
-/**
- * Build the `g2g-signature` value.
- *
- * Per docs: HMAC-SHA256( secret, path + apiKey + userId + timestamp )
- * Result is a hex string.
- */
-export function signG2gRequest(
-  path: string,
-  timestamp: number,
-  apiKey = G2G_API_KEY,
-  userId = G2G_USER_ID,
-  secret = G2G_SECRET,
-): string {
-  if (!secret || !apiKey || !userId) {
-    throw new Error(
-      'G2G credentials not configured. Set G2G_API_KEY, G2G_USER_ID, and G2G_SECRET in .env.local.',
-    )
-  }
-  const payload = `${path}${apiKey}${userId}${timestamp}`
-  return crypto.createHmac('sha256', secret).update(payload).digest('hex')
+/** HMAC for `path + apiKey + userId + timestamp` using configured env credentials. */
+export function signG2gRequest(path: string, timestamp: number): string {
+  const { apiKey, userId, secret } = assertG2gEnv()
+  return computeG2gSignature(path, timestamp, apiKey, userId, secret)
 }
 
-// ─── Generic fetch wrapper ──────────────────────────────────────────────────
+export { g2gFetch, G2gApiError } from './g2gClient'
 
-export async function g2gFetch<T>(
-  path: string,
-  options: RequestInit & { method?: string } = {},
-): Promise<T> {
-  if (!G2G_API_KEY || !G2G_USER_ID || !G2G_SECRET) {
-    throw new Error(
-      'G2G API not configured. Set G2G_API_KEY, G2G_USER_ID, and G2G_SECRET in .env.local.',
-    )
-  }
-
-  const timestamp = Date.now()
-  const signature = signG2gRequest(path, timestamp)
-
-  const url = `${G2G_BASE_URL}${path}`
-
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'g2g-api-key':   G2G_API_KEY,
-      'g2g-userid':    G2G_USER_ID,
-      'g2g-signature': signature,
-      'g2g-timestamp': String(timestamp),
-      ...options.headers,
-    },
-  })
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(
-      `G2G API error ${res.status} on ${url}: ${text || res.statusText}`,
-    )
-  }
-
-  return res.json() as Promise<T>
-}
-
-// ─── TypeScript interfaces ──────────────────────────────────────────────────
+// ─── TypeScript interfaces ───────────────────────────────────────────────────
 
 export interface G2gService {
   service_id: string
@@ -100,6 +39,17 @@ export interface G2gBrand {
   brand_id: string
   brand_name: string
   after?: string
+}
+
+export interface G2gProduct {
+  service_id: string
+  brand_id: string
+  product_id: string
+  category_id: string
+  product_name: string
+  service_name: string
+  brand_name: string
+  region_name: string
 }
 
 export interface G2gOffer {
@@ -151,7 +101,13 @@ export interface G2gCreateOfferBody {
   [key: string]: unknown
 }
 
-// ─── Marketplace methods ────────────────────────────────────────────────────
+interface G2gEnvelope<T> {
+  code?: number
+  message?: string
+  payload?: T
+}
+
+// ─── Marketplace methods ─────────────────────────────────────────────────────
 
 /** POST /v2/offer/search — search marketplace offers */
 export async function searchOffers(
@@ -179,7 +135,7 @@ export async function createOffer(body: G2gCreateOfferBody): Promise<G2gOffer> {
   })
 }
 
-// ─── Product catalogue (read-only) ─────────────────────────────────────────
+// ─── Product catalogue (read-only) ───────────────────────────────────────────
 
 /** GET /v2/product/service — list available services */
 export async function getServices(): Promise<G2gService[]> {
@@ -191,9 +147,32 @@ export async function getServices(): Promise<G2gService[]> {
 
 /** GET /v2/product/brand — list brands */
 export async function getBrands(after?: string): Promise<G2gBrand[]> {
-  const qs = after ? `?after=${encodeURIComponent(after)}` : ''
-  const data = await g2gFetch<{ brands?: G2gBrand[] } | G2gBrand[]>(
-    `/v2/product/brand${qs}`,
-  )
+  const path = buildG2gQueryPath('/v2/product/brand', { after })
+  const data = await g2gFetch<{ brands?: G2gBrand[] } | G2gBrand[]>(path)
   return Array.isArray(data) ? data : (data.brands ?? [])
+}
+
+/**
+ * GET https://open-api.g2g.com/v2/products — catalogue products for a brand/service.
+ * @see https://docs.g2g.com/get-products-18583481e0
+ */
+export async function getG2gProducts(params: {
+  category_id?: string
+  service_id?: string
+  brand_id?: string
+  q?: string
+} = {}): Promise<G2gProduct[]> {
+  const path = buildG2gQueryPath('/v2/products', {
+    category_id: params.category_id,
+    service_id: params.service_id,
+    brand_id: params.brand_id,
+    q: params.q,
+  })
+  const data = await g2gFetch<G2gEnvelope<{ product_list?: G2gProduct[] }>>(path, {
+    method: 'GET',
+  })
+  if (typeof data.code === 'number' && data.code !== 20000001) {
+    throw new Error(data.message || `G2G API code ${data.code}`)
+  }
+  return data.payload?.product_list ?? []
 }
